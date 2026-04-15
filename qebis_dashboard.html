@@ -4,51 +4,83 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QEBIS Dashboard</title>
-    <!-- Add Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div id="degChart"></div>
-    <div id="nyquistChart"></div>
-    <div id="stageChart"></div>
-    <!-- Other HTML content -->
+    <header>
+        <h1>QEBIS Dashboard</h1>
+    </header>
+    <section id="degChartContainer" aria-labelledby="degChartHeader">
+        <h2 id="degChartHeader">Degree Chart</h2>
+        <canvas id="degChart"></canvas>
+    </section>
+    <section id="nyquistContainer" aria-labelledby="nyquistHeader">
+        <h2 id="nyquistHeader">Nyquist Chart</h2>
+        <canvas id="nyquistChart"></canvas>
+    </section>
+    <section id="stageContainer" aria-labelledby="stageHeader">
+        <h2 id="stageHeader">Stage Chart</h2>
+        <canvas id="stageChart"></canvas>
+    </section>
+    <footer>
+        <p>Dashboard generated on <span id="currentDate"></span>.</p>
+    </footer>
     <script>
-        // Data validation function
+        document.getElementById("currentDate").innerText = new Date().toUTCString();
+
         function validateData(data) {
-            // Implement validation logic here
+            // Perform data validation
             return Array.isArray(data) && data.length > 0;
         }
 
-        try {
-            // Complete implementations of charts
-            const degChart = new Chart(document.getElementById('degChart'), {
+        function renderChart(chartId, data) {
+            const ctx = document.getElementById(chartId).getContext('2d');
+            return new Chart(ctx, {
                 type: 'line',
-                data: {},
-                options: {}
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Data',
+                        data: data.values,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        fill: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
             });
-
-            const nyquistChart = new Chart(document.getElementById('nyquistChart'), {
-                type: 'bar',
-                data: {},
-                options: {}
-            });
-
-            const stageChart = new Chart(document.getElementById('stageChart'), {
-                type: 'pie',
-                data: {},
-                options: {}
-            });
-
-            // Populate stage-legend and nyquist-tabs
-            // Logic to populate these elements
-
-        } catch (error) {
-            console.error('An error occurred:', error);
-            // Handle error appropriately
         }
 
-        // Fix for duplicate color definitions
-        const colors = ['#FF5733', '#33FF57', '#3357FF'];
+        function handleChartData(chartId, fetchUrl) {
+            fetch(fetchUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (validateData(data)) {
+                        renderChart(chartId, data);
+                    } else {
+                        console.error('Invalid data received for ' + chartId);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching data for ' + chartId, error);
+                });
+        }
+
+        handleChartData('degChart', '/api/deg-data');
+        handleChartData('nyquistChart', '/api/nyquist-data');
+        handleChartData('stageChart', '/api/stage-data');
     </script>
 </body>
 </html>
