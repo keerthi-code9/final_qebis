@@ -4,7 +4,214 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QEBIS — Quantum-Enhanced Battery Intelligence System</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ── Color palette ─────────────────────────────────────────────────
+const C = {
+  blue:   '#2078ff',
+  cyan:   '#00d4ff',
+  amber:  '#ffb020',
+  green:  '#00e5a0',
+  red:    '#ff4d6a',
+  purple: '#a855f7',
+  muted:  '#7a90b8',
+  grid:   'rgba(32,120,255,0.08)',
+  text:   '#e8f0ff',
+};
+
+const STAGE_COLORS = ['','#00e5a0','#2078ff','#ffb020','#ff8c42','#ff4d6a'];
+const STAGE_NAMES  = ['','Stage 1: Healthy','Stage 2: Early SEI','Stage 3: Noticeable','Stage 4: Significant','Stage 5: Critical'];
+
+Chart.defaults.color = C.muted;
+Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+Chart.defaults.font.size = 10;
+
+const gridStyle = {
+  color: C.grid,
+  lineWidth: 0.5,
+};
+
+const tickStyle = {
+  color: C.muted,
+  maxTicksLimit: 8,
+};
+
+// ── STREAMLIT JSON INJECTION VERSION ──────────────────────────────
+async function init() {
+  let data;
+
+  try {
+    data = __QEBIS_DATA__;
+  } catch (e) {
+    document.getElementById('loading').innerHTML =
+      `<div style="text-align:center;color:#ff4d6a;font-family:monospace;padding:40px">
+        <div style="font-size:24px;margin-bottom:12px">⚠</div>
+        <div>Could not load injected QEBIS data</div>
+        <div style="font-size:12px;color:#7a90b8;margin-top:8px">
+          Ensure app.py injects JSON into HTML correctly.
+        </div>
+      </div>`;
+    return;
+  }
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  const cyc = data.cycles;
+  const det = data.detection;
+  const meta = data.metadata;
+  const N = cyc.cycle_number.length;
+
+  // ── Stat Cards ──────────────────────────────────────────────────
+  const stats = [
+    { label: 'Cycles Simulated', value: meta.n_cycles, sub: 'PyBaMM SPM model', accent: C.blue, suffix: '' },
+    { label: 'Capacity Fade', value: (100 - cyc.capacity_pct[N-1]).toFixed(1), sub: 'over full simulation', accent: C.amber, suffix: '%' },
+    { label: 'QEBIS Alert Cycle', value: det.qebis_alert_cycle, sub: `at ${det.qebis_capacity_at_alert}% capacity`, accent: C.green, suffix: '' },
+    { label: 'BMS Alert Cycle', value: det.bms_alert_cycle, sub: `at ${det.bms_capacity_at_alert}% capacity`, accent: C.red, suffix: '' },
+    { label: 'Advance Warning', value: det.cycles_earlier, sub: 'cycles earlier than BMS', accent: C.cyan, suffix: ' cycles' },
+    { label: 'Final Rs', value: cyc.eis_rs[N-1].toFixed(4), sub: 'series resistance [Ω]', accent: C.purple, suffix: '' },
+  ];
+
+  const statsRow = document.getElementById('stats-row');
+  stats.forEach(s => {
+    statsRow.innerHTML += `
+      <div class="stat-card" style="--accent:${s.accent}">
+        <div class="stat-label">${s.label}</div>
+        <div class="stat-value" style="color:${s.accent}">${s.value}${s.suffix}</div>
+        <div class="stat-sub">${s.sub}</div>
+      </div>`;
+  });
+
+  document.getElementById('qebis-alert-cycle').textContent = `Cycle ${det.qebis_alert_cycle}`;
+  document.getElementById('qebis-alert-cycle').className = 'compare-val good';
+  document.getElementById('qebis-cap-at-alert').textContent = `${det.qebis_capacity_at_alert}%`;
+
+  document.getElementById('bms-alert-cycle').textContent = `Cycle ${det.bms_alert_cycle}`;
+  document.getElementById('bms-cap-at-alert').textContent = `${det.bms_capacity_at_alert}%`;
+
+  document.getElementById('adv-number').textContent = det.cycles_earlier;
+
+  const capDiff = (det.bms_capacity_at_alert - det.qebis_capacity_at_alert).toFixed(1);
+  document.getElementById('adv-cap-diff').textContent = `${capDiff}% capacity saved`;
+
+  const annotationPlugin = {
+    id: 'verticalLines',
+    afterDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      const lines = chart.config.options._vlines || [];
+
+      lines.forEach(({ x, color, label }) => {
+        const px = scales.x.getPixelForValue(x);
+
+        if (px < chartArea.left || px > chartArea.right) return;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.moveTo(px, chartArea.top);
+        ctx.lineTo(px, chartArea.bottom);
+        ctx.stroke();
+
+        ctx.setLineDash([]);
+        ctx.fillStyle = color;
+        ctx.font = '9px IBM Plex Mono';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, px, chartArea.top + 10);
+        ctx.restore();
+      });
+    }
+  };
+
+  Chart.register(annotationPlugin);
+
+  // ── HEALTH CHART ────────────────────────────────────────────────
+  new Chart(document.getElementById('healthChart'), {
+    type: 'line',
+    data: {
+      labels: cyc.cycle_number,
+      datasets: [
+        {
+          label: 'QEBIS Health Score',
+          data: cyc.health_score,
+          borderColor: C.blue,
+          backgroundColor: 'rgba(32,120,255,0.08)',
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.3
+        },
+        {
+          label: 'Capacity (% of new)',
+          data: cyc.capacity_pct,
+          borderColor: C.muted,
+          borderWidth: 1.5,
+          borderDash: [4, 3],
+          pointRadius: 0,
+          fill: false,
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      _vlines: [
+        { x: det.qebis_alert_cycle, color: C.green, label: `QEBIS alert` },
+        { x: det.bms_alert_cycle, color: C.red, label: `BMS alert` }
+      ],
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: gridStyle, ticks: tickStyle },
+        y: { min: 50, max: 105, grid: gridStyle, ticks: tickStyle }
+      }
+    }
+  });
+
+  // ── EIS CHART ───────────────────────────────────────────────────
+  new Chart(document.getElementById('eisChart'), {
+    type: 'line',
+    data: {
+      labels: cyc.cycle_number,
+      datasets: [
+        {
+          label: 'Rs',
+          data: cyc.eis_rs.map(v => v * 1000),
+          borderColor: C.cyan,
+          pointRadius: 0,
+          tension: 0.3
+        },
+        {
+          label: 'Rct',
+          data: cyc.eis_rct.map(v => v * 1000),
+          borderColor: C.amber,
+          pointRadius: 0,
+          tension: 0.3
+        },
+        {
+          label: 'Warburg',
+          data: cyc.eis_warburg.map(v => v * 1000),
+          borderColor: C.purple,
+          pointRadius: 0,
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { grid: gridStyle, ticks: tickStyle },
+        y: { grid: gridStyle, ticks: tickStyle }
+      }
+    }
+  });
+
+  // Add your remaining charts here exactly same as before
+}
+
+init();
+</script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
