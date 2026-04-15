@@ -1,7 +1,16 @@
 import streamlit as st
 import streamlit.components.v1 as components
+import json
+
+with open("qebis_data.json", "r") as f:
+    qebis_data = json.load(f)
 
 with open("qebis_dashboard.html", "r", encoding="utf-8") as f:
-    html_data = f.read()
+    html = f.read()
 
-components.html(html_data, height=900, scrolling=True)
+html = html.replace(
+    "__QEBIS_DATA__",
+    json.dumps(qebis_data)
+)
+
+components.html(html, height=2200, scrolling=True)
