@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QEBIS — Quantum-Enhanced Battery Intelligence System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #060d1a;
+    --surface: #0b1629;
+    --surface2: #112040;
+    --border: rgba(32,120,255,0.18);
+    --blue: #2078ff;
+    --blue-dim: rgba(32,120,255,0.15);
+    --cyan: #00d4ff;
+    --amber: #ffb020;
+    --green: #00e5a0;
+    --red: #ff4d6a;
+    --text: #e8f0ff;
+    --muted: #7a90b8;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Scanline texture overlay ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(180deg, rgba(32,120,255,0.06) 0%, transparent 100%);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-icon {
+    width: 38px; height: 38px;
+    border: 1.5px solid var(--blue);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--blue-dim);
+    position: relative;
+  }
+
+  .logo-icon svg { width: 22px; height: 22px; }
+
+  .logo-text {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.05em;
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .header-meta {
+    text-align: right;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--blue-dim);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--cyan);
+    letter-spacing: 0.06em;
+  }
+
+  /* ── Layout ── */
+  .container { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+
+  .page-section {
+    padding: 32px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--blue);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .section-title {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 20px;
+  }
+
+  /* ── Stat cards ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent, var(--blue));
+    opacity: 0.7;
+  }
+
+  .stat-card:hover { border-color: rgba(32,120,255,0.4); }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .stat-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* ── Chart panels ── */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .chart-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+  }
+
+  .chart-panel.wide { grid-column: 1 / -1; }
+
+  .chart-title {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--cyan);
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+
+  .chart-desc {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .chart-wrap { position: relative; }
+
+  /* ── Comparison section ── */
+  .comparison-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .compare-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  .compare-card.qebis-card {
+    border-color: rgba(0,229,160,0.3);
+    background: rgba(0,229,160,0.04);
+  }
+
+  .compare-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .compare-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+
+  .compare-name {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .compare-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 12px;
+  }
+
+  .compare-row:last-child { border-bottom: none; }
+
+  .compare-key { color: var(--muted); }
+  .compare-val { font-family: var(--mono); color: var(--text); text-align: right; }
+  .compare-val.good { color: var(--green); }
+  .compare-val.bad  { color: var(--red); }
+  .compare-val.warn { color: var(--amber); }
+
+  /* ── Advantage banner ── */
+  .advantage-banner {
+    background: linear-gradient(135deg, rgba(0,229,160,0.08), rgba(32,120,255,0.08));
+    border: 1px solid rgba(0,229,160,0.25);
+    border-radius: 12px;
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .adv-number {
+    font-family: var(--mono);
+    font-size: 52px;
+    font-weight: 600;
+    color: var(--green);
+    line-height: 1;
+  }
+
+  .adv-text {
+    font-size: 16px;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .adv-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* ── Stage legend ── */
+  .stage-legend {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
+  .stage-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: var(--mono);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .stage-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ── Nyquist tabs ── */
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+
+  .tab-btn {
+    padding: 6px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 11px;
+    transition: all 0.15s;
+  }
+
+  .tab-btn:hover { background: var(--blue-dim); color: var(--text); }
+  .tab-btn.active { background: var(--blue-dim); border-color: var(--blue); color: var(--cyan); }
+
+  /* ── Pipeline diagram ── */
+  .pipeline {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    margin: 24px 0;
+    position: relative;
+  }
+
+  .pipeline::before {
+    content: '';
+    position: absolute;
+    top: 36px; left: 12.5%; right: 12.5%;
+    height: 1px;
+    background: linear-gradient(90deg, var(--blue), var(--cyan), var(--blue));
+    opacity: 0.4;
+  }
+
+  .pipe-step {
+    text-align: center;
+    padding: 0 8px;
+    position: relative;
+  }
+
+  .pipe-icon {
+    width: 72px; height: 72px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    margin: 0 auto 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    position: relative;
+    z-index: 1;
+    transition: border-color 0.2s;
+  }
+
+  .pipe-step:hover .pipe-icon {
+    border-color: var(--blue);
+    background: var(--blue-dim);
+  }
+
+  .pipe-num {
+    position: absolute;
+    top: -6px; right: -6px;
+    width: 18px; height: 18px;
+    background: var(--blue);
+    border-radius: 50%;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+
+  .pipe-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .pipe-desc { font-size: 10px; color: var(--muted); line-height: 1.4; }
+
+  .pipe-tag {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.06em;
+  }
+
+  .tag-lab  { background: rgba(255,176,32,0.15); color: var(--amber); }
+  .tag-ai   { background: rgba(0,212,255,0.12);  color: var(--cyan); }
+  .tag-edge { background: rgba(0,229,160,0.12);  color: var(--green); }
+  .tag-svc  { background: rgba(32,120,255,0.15); color: var(--blue); }
+
+  /* ── Footer ── */
+  footer {
+    padding: 24px 32px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+    border-top: 1px solid var(--border);
+    line-height: 2;
+  }
+
+  /* ── Loading screen ── */
+  #loading {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    gap: 20px;
+  }
+
+  .loader-ring {
+    width: 48px; height: 48px;
+    border: 2px solid var(--border);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loader-text {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  #app { display: none; }
+
+  /* ── Pulse animation for alert markers ── */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .chart-grid, .comparison-grid { grid-template-columns: 1fr; }
+    .chart-panel.wide { grid-column: 1; }
+    .pipeline { grid-template-columns: 1fr 1fr; }
+    .pipeline::before { display: none; }
+    .adv-number { font-size: 36px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading screen while data loads -->
+<div id="loading">
+  <div class="loader-ring"></div>
+  <div class="loader-text">Loading simulation data...</div>
+</div>
+
+<div id="app">
+
+<!-- ═══ HEADER ═══════════════════════════════════════════════════════ -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <!-- Quantum atom icon -->
+      <svg viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="11" cy="11" rx="9" ry="4.5" stroke="#2078ff" stroke-width="1.2" transform="rotate(0 11 11)"/>
+        <ellipse cx="11" cy="11" rx="9" ry="4.5" stroke="#00d4ff" stroke-width="1.2" transform="rotate(60 11 11)" opacity="0.7"/>
+        <ellipse cx="11" cy="11" rx="9" ry="4.5" stroke="#2078ff" stroke-width="1.2" transform="rotate(120 11 11)" opacity="0.5"/>
+        <circle cx="11" cy="11" r="2" fill="#00d4ff"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">QEBIS</div>
+      <div class="logo-sub">Quantum-Enhanced Battery Intelligence System</div>
+    </div>
+  </div>
+  <div class="header-meta">
+    <div>VTU Quantum Summit 2026 — Qubitathon</div>
+    <div>Team Quant_Power &nbsp;|&nbsp; Nitte Meenakshi Institute of Technology</div>
+    <div style="margin-top:4px">
+      <span class="badge">PyBaMM SPM</span>&nbsp;
+      <span class="badge">EIS SIMULATION</span>&nbsp;
+      <span class="badge">ISOLATION FOREST</span>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ PIPELINE OVERVIEW ══════════════════════════════════════════ -->
+<div class="container">
+<div class="page-section">
+  <div class="section-label">System architecture</div>
+  <div class="section-title">How QEBIS Works — 4-Phase Pipeline</div>
+
+  <div class="pipeline">
+    <div class="pipe-step">
+      <div class="pipe-icon">
+        🔬
+        <div class="pipe-num">1</div>
+      </div>
+      <div class="pipe-title">Quantum Lab</div>
+      <div class="pipe-desc">NMR &amp; NV-center sensing of battery aging at atomic level</div>
+      <div class="pipe-tag tag-lab">ONE-TIME</div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-icon">
+        🗄️
+        <div class="pipe-num">2</div>
+      </div>
+      <div class="pipe-title">Ground-Truth DB</div>
+      <div class="pipe-desc">Quantum-labeled EIS fingerprints for each degradation stage</div>
+      <div class="pipe-tag tag-ai">AI TRAINING</div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-icon">
+        ⚡
+        <div class="pipe-num">3</div>
+      </div>
+      <div class="pipe-title">Embedded EIS</div>
+      <div class="pipe-desc">₹500 chip monitors Rs, Rct, Warburg continuously on-vehicle</div>
+      <div class="pipe-tag tag-edge">EDGE AI</div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-icon">
+        🏥
+        <div class="pipe-num">4</div>
+      </div>
+      <div class="pipe-title">Service Station</div>
+      <div class="pipe-desc">Full EIS scan confirms degradation stage &amp; recommends action</div>
+      <div class="pipe-tag tag-svc">DIAGNOSTICS</div>
+    </div>
+  </div>
+
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 20px;font-size:12px;color:var(--muted);">
+    <strong style="color:var(--cyan)">Simulation note:</strong>
+    In this demo, Phase 1 is simulated using PyBaMM's physics model (Chen2020 parameter set) as a proxy for NMR measurements.
+    EIS parameters (R<sub>s</sub>, R<sub>ct</sub>, Warburg) are physics-derived from SEI growth variables.
+    In production, these would come from a real ₹500 AD5941 EIS chip.
+  </div>
+</div>
+
+<!-- ═══ KEY METRICS ═══════════════════════════════════════════════ -->
+<div class="page-section">
+  <div class="section-label">Simulation results</div>
+  <div class="section-title">Key Metrics at a Glance</div>
+
+  <div class="stats-row" id="stats-row">
+    <!-- Filled by JS -->
+  </div>
+</div>
+
+<!-- ═══ DETECTION COMPARISON ══════════════════════════════════════ -->
+<div class="page-section">
+  <div class="section-label">Core value proposition</div>
+  <div class="section-title">QEBIS vs Classical BMS — Detection Comparison</div>
+
+  <div class="comparison-grid">
+    <div class="compare-card qebis-card">
+      <div class="compare-header">
+        <div class="compare-dot" style="background:var(--green)"></div>
+        <div class="compare-name" style="color:var(--green)">QEBIS (EIS + AI)</div>
+      </div>
+      <div class="compare-row">
+        <span class="compare-key">Detection method</span>
+        <span class="compare-val good">EIS impedance anomaly</span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-key">Monitors</span>
+        <span class="compare-val good">Rs, Rct, Warburg, Temp</span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-key">Alert trigger</span>
+        <span class="compare-val" id="qebis-alert-cycle">—</span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-key">Capacity at alert</span>
+        <span class="compare-val good" id="qebis-cap-at-alert">—</span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-key">Learning</span>
+        <span class="compare-val good">Improves with each visit</span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-key">Degradation insight</span>
+        <span class="compare-val good">Mechanism-specific</span>
+      </div>
+    </div>
+
+    <div class="compare-card">
+      <div class="compare-header">
+        <div class="compare-dot" style="background:var(--red)"></div>
+        <div class="compare-name" style="color:var(--red)">Classical BMS</div>
+      </div>
+      <div class="compare-row">
+        <span class="compare-key">Detection method</span>
+        <span class="compare-val bad">Voltage threshold only</span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-key">Monitors</span>
+        <span class="compare-val warn">Voltage, Current, Temp</span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-key">Alert trigger</span>
+        <span class="compare-val" id="bms-alert-cycle">—</span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-key">Capacity at alert</span>
+        <span class="compare-val bad" id="bms-cap-at-alert">—</span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-key">Learning</span>
+        <span class="compare-val bad">Static thresholds</span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-key">Degradation insight</span>
+        <span class="compare-val bad">None (reactive only)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="advantage-banner">
+    <div>
+      <div class="adv-number" id="adv-number">—</div>
+      <div class="adv-text">charge cycles of advance warning</div>
+      <div class="adv-sub">QEBIS detects degradation earlier, while the battery still has capacity to spare — enabling low-cost preventive maintenance instead of emergency replacement</div>
+    </div>
+    <div style="text-align:right;min-width:200px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Maintenance window preserved</div>
+      <div style="font-family:var(--mono);font-size:20px;color:var(--green)" id="adv-cap-diff">—% capacity saved</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">for planned repair vs emergency</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MAIN CHARTS ════════════════════════════════════════════════ -->
+<div class="page-section">
+  <div class="section-label">Time-series analysis</div>
+  <div class="section-title">Battery Health Over 200 Charge-Discharge Cycles</div>
+
+  <div class="chart-grid">
+
+    <!-- Health Score chart -->
+    <div class="chart-panel wide">
+      <div class="chart-title">QEBIS HEALTH SCORE vs CLASSICAL BMS VOLTAGE CAPACITY</div>
+      <div class="chart-desc">
+        QEBIS health score (blue) drops earlier than capacity fade (gray), flagging degradation before the voltage-based BMS would react.
+        Vertical markers show when each system would alert the user.
+      </div>
+      <div class="chart-wrap" style="height:280px">
+        <canvas id="healthChart"></canvas>
+      </div>
+    </div>
+
+    <!-- EIS Impedance chart -->
+    <div class="chart-panel">
+      <div class="chart-title">EIS IMPEDANCE PARAMETERS vs CYCLE</div>
+      <div class="chart-desc">
+        R<sub>s</sub> and R<sub>ct</sub> increase as SEI layer grows. The ₹500 embedded chip tracks these shifts continuously.
+      </div>
+      <div class="chart-wrap" style="height:240px">
+        <canvas id="eisChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Degradation breakdown chart -->
+    <div class="chart-panel">
+      <div class="chart-title">DEGRADATION MECHANISMS (QUANTUM PROXY LABELS)</div>
+      <div class="chart-desc">
+        SEI growth vs lithium plating — breakdown of capacity loss by mechanism, as labeled by PyBaMM physics (proxy for NMR in production).
+      </div>
+      <div class="chart-wrap" style="height:240px">
+        <canvas id="degChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Nyquist chart -->
+    <div class="chart-panel">
+      <div class="chart-title">NYQUIST PLOT — EIS FINGERPRINT EVOLUTION</div>
+      <div class="chart-desc">
+        The growing semicircle reveals increasing R<sub>ct</sub> as the battery degrades — invisible to classical voltage sensors.
+      </div>
+      <div class="tabs" id="nyquist-tabs"></div>
+      <div class="chart-wrap" style="height:210px">
+        <canvas id="nyquistChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Degradation stage timeline -->
+    <div class="chart-panel">
+      <div class="chart-title">DEGRADATION STAGE vs CYCLE</div>
+      <div class="chart-desc">
+        Quantum-proxy stage labels (1=healthy → 5=critical). In production, these labels come from NMR confirmation.
+      </div>
+      <div class="stage-legend" id="stage-legend"></div>
+      <div class="chart-wrap" style="height:190px">
+        <canvas id="stageChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ REFERENCES ═════════════════════════════════════════════════ -->
+<div class="page-section">
+  <div class="section-label">Simulation sources</div>
+  <div class="section-title">References & Tools Used</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;color:var(--muted)">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px">
+      <div style="color:var(--cyan);font-family:var(--mono);margin-bottom:6px">PyBaMM (Battery Physics)</div>
+      SPM model with SEI (ec reaction limited) · Chen2020 parameter set<br>
+      <span style="color:var(--blue)">pybamm.org</span>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px">
+      <div style="color:var(--cyan);font-family:var(--mono);margin-bottom:6px">EIS Model (Randles Circuit)</div>
+      Nyquist plot generated from Randles circuit · impedance.py conventions<br>
+      <span style="color:var(--blue)">impedancepy.readthedocs.io</span>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px">
+      <div style="color:var(--cyan);font-family:var(--mono);margin-bottom:6px">Anomaly Detection (ML)</div>
+      Isolation Forest on EIS feature drift · scikit-learn · 200-tree ensemble<br>
+      <span style="color:var(--blue)">scikit-learn.org</span>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px">
+      <div style="color:var(--cyan);font-family:var(--mono);margin-bottom:6px">Quantum References</div>
+      Grey Group NMR (Cambridge) · NASA Battery Dataset · Oxford Degradation Dataset<br>
+      <span style="color:var(--blue)">Phase 1 design basis</span>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<footer>
+  QEBIS Simulation Demo &nbsp;·&nbsp; VTU Quantum Summit 2026 — Qubitathon &nbsp;·&nbsp;
+  Team Quant_Power: A S Harish &amp; Keerthana Bhat &nbsp;·&nbsp; Nitte Meenakshi Institute of Technology<br>
+  <span style="font-size:10px">All data is simulation output from PyBaMM. This is a prototype demonstration, not production sensor data.</span>
+</footer>
+
+</div><!-- /app -->
+
+<!-- ═══ JAVASCRIPT ══════════════════════════════════════════════════ -->
+<script>
+// ── Color palette ─────────────────────────────────────────────────
+const C = {
+  blue:   '#2078ff',
+  cyan:   '#00d4ff',
+  amber:  '#ffb020',
+  green:  '#00e5a0',
+  red:    '#ff4d6a',
+  purple: '#a855f7',
+  muted:  '#7a90b8',
+  grid:   'rgba(32,120,255,0.08)',
+  text:   '#e8f0ff',
+};
+
+const STAGE_COLORS = ['','#00e5a0','#2078ff','#ffb020','#ff8c42','#ff4d6a'];
+const STAGE_NAMES  = ['','Stage 1: Healthy','Stage 2: Early SEI','Stage 3: Noticeable','Stage 4: Significant','Stage 5: Critical'];
+
+// ── Chart.js defaults ─────────────────────────────────────────────
+Chart.defaults.color = C.muted;
+Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+Chart.defaults.font.size = 10;
+
+const gridStyle = {
+  color: C.grid,
+  lineWidth: 0.5,
+};
+
+const tickStyle = {
+  color: C.muted,
+  maxTicksLimit: 8,
+};
+
+// ── Load data and build dashboard ─────────────────────────────────
+async function init() {
+  let data;
+
+  try {
+    // Try to load the JSON file generated by the Python simulation
+    const resp = await fetch('qebis_data.json');
+    if (!resp.ok) throw new Error('fetch failed');
+    data = await resp.json();
+  } catch (e) {
+    document.getElementById('loading').innerHTML =
+      `<div style="text-align:center;color:#ff4d6a;font-family:monospace;padding:40px">
+        <div style="font-size:24px;margin-bottom:12px">⚠</div>
+        <div>Could not load qebis_data.json</div>
+        <div style="font-size:12px;color:#7a90b8;margin-top:8px">
+          Run: <code>python qebis_simulation.py</code><br>
+          Then open this HTML file in the same folder.
+        </div>
+      </div>`;
+    return;
+  }
+
+  // ── Hide loader, show app ────────────────────────────────────────
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  const cyc = data.cycles;
+  const det = data.detection;
+  const meta = data.metadata;
+  const N = cyc.cycle_number.length;
+
+  // ── Stat cards ───────────────────────────────────────────────────
+  const stats = [
+    { label: 'Cycles Simulated',   value: meta.n_cycles,                       sub: 'PyBaMM SPM model',          accent: C.blue,   suffix: '' },
+    { label: 'Capacity Fade',      value: (100 - cyc.capacity_pct[N-1]).toFixed(1), sub: 'over full simulation',  accent: C.amber,  suffix: '%' },
+    { label: 'QEBIS Alert Cycle',  value: det.qebis_alert_cycle,               sub: `at ${det.qebis_capacity_at_alert}% capacity`, accent: C.green, suffix: '' },
+    { label: 'BMS Alert Cycle',    value: det.bms_alert_cycle,                 sub: `at ${det.bms_capacity_at_alert}% capacity`,   accent: C.red,   suffix: '' },
+    { label: 'Advance Warning',    value: det.cycles_earlier,                  sub: 'cycles earlier than BMS',   accent: C.cyan,   suffix: ' cycles' },
+    { label: 'Final Rs',           value: cyc.eis_rs[N-1].toFixed(4),          sub: 'series resistance [Ω]',     accent: C.purple, suffix: '' },
+  ];
+
+  const statsRow = document.getElementById('stats-row');
+  stats.forEach(s => {
+    statsRow.innerHTML += `
+      <div class="stat-card" style="--accent:${s.accent}">
+        <div class="stat-label">${s.label}</div>
+        <div class="stat-value" style="color:${s.accent}">${s.value}${s.suffix}</div>
+        <div class="stat-sub">${s.sub}</div>
+      </div>`;
+  });
+
+  // ── Comparison cards ─────────────────────────────────────────────
+  document.getElementById('qebis-alert-cycle').textContent = `Cycle ${det.qebis_alert_cycle}`;
+  document.getElementById('qebis-alert-cycle').className = 'compare-val good';
+  document.getElementById('qebis-cap-at-alert').textContent = `${det.qebis_capacity_at_alert}%`;
+  document.getElementById('bms-alert-cycle').textContent = `Cycle ${det.bms_alert_cycle}`;
+  document.getElementById('bms-cap-at-alert').textContent = `${det.bms_capacity_at_alert}%`;
+
+  document.getElementById('adv-number').textContent = det.cycles_earlier;
+  const capDiff = (det.bms_capacity_at_alert - det.qebis_capacity_at_alert).toFixed(1);
+  document.getElementById('adv-cap-diff').textContent = `${capDiff}% capacity saved`;
+
+  // ── Helper: vertical annotation plugin ──────────────────────────
+  const annotationPlugin = {
+    id: 'verticalLines',
+    afterDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      const lines = chart.config.options._vlines || [];
+      lines.forEach(({ x, color, label }) => {
+        const px = scales.x.getPixelForValue(x);
+        if (px < chartArea.left || px > chartArea.right) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.moveTo(px, chartArea.top);
+        ctx.lineTo(px, chartArea.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = color;
+        ctx.font = '9px IBM Plex Mono';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, px, chartArea.top + 10);
+        ctx.restore();
+      });
+    }
+  };
+  Chart.register(annotationPlugin);
+
+  // ── CHART 1: Health Score ────────────────────────────────────────
+  new Chart(document.getElementById('healthChart'), {
+    type: 'line',
+    data: {
+      labels: cyc.cycle_number,
+      datasets: [
+        {
+          label: 'QEBIS Health Score',
+          data: cyc.health_score,
+          borderColor: C.blue,
+          backgroundColor: 'rgba(32,120,255,0.08)',
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.3,
+        },
+        {
+          label: 'Capacity (% of new)',
+          data: cyc.capacity_pct,
+          borderColor: C.muted,
+          borderWidth: 1.5,
+          borderDash: [4,3],
+          pointRadius: 0,
+          fill: false,
+          tension: 0.3,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0b1629',
+          borderColor: 'rgba(32,120,255,0.3)',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%`
+          }
+        },
+      },
+      _vlines: [
+        { x: det.qebis_alert_cycle, color: C.green, label: `QEBIS alert (c${det.qebis_alert_cycle})` },
+        { x: det.bms_alert_cycle,   color: C.red,   label: `BMS alert (c${det.bms_alert_cycle})` },
+      ],
+      scales: {
+        x: {
+          title: { display: true, text: 'Cycle Number', color: C.muted },
+          grid: gridStyle, ticks: tickStyle,
+        },
+        y: {
+          min: 50, max: 105,
+          title: { display: true, text: 'Score / Capacity (%)', color: C.muted },
+          grid: gridStyle, ticks: tickStyle,
+        }
+      }
+    }
+  });
+
+  // ── CHART 2: EIS Parameters ──────────────────────────────────────
+  new Chart(document.getElementById('eisChart'), {
+    type: 'line',
+    data: {
+      labels: cyc.cycle_number,
+      datasets: [
+        {
+          label: 'Rs (Series Resistance)',
+          data: cyc.eis_rs.map(v => +(v * 1000).toFixed(4)),
+          borderColor: C.cyan,
+          borderWidth: 1.8,
+          pointRadius: 0,
+          tension: 0.3,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Rct (Charge Transfer)',
+          data: cyc.eis_rct.map(v => +(v * 1000).toFixed(4)),
+          borderColor: C.amber,
+          borderWidth: 1.8,
+          pointRadius: 0,
+          tension: 0.3,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Warburg Coeff.',
+          data: cyc.eis_warburg.map(v => +(v * 1000).toFixed(4)),
+          borderColor: C.purple,
+          borderWidth: 1.5,
+          borderDash: [3,2],
+          pointRadius: 0,
+          tension: 0.3,
+          yAxisID: 'y',
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          labels: { boxWidth: 10, padding: 12, color: C.muted, font: { size: 10 } }
+        },
+        tooltip: {
+          backgroundColor: '#0b1629',
+          borderColor: 'rgba(32,120,255,0.3)',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} mΩ`
+          }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Cycle', color: C.muted }, grid: gridStyle, ticks: tickStyle },
+        y: { title: { display: true, text: 'Impedance (mΩ)', color: C.muted }, grid: gridStyle, ticks: tickStyle }
+      }
+    }
+  });
+
+  // ── CHART 3: Degradation Stacked Area ───────────────────────────
+  new Chart(document.getElementById('degChart'), {
+    type: 'line',
+    data: {
+      labels: cyc.cycle_number,
+      datasets: [
+        {
+          label: 'SEI Capacity Loss',
+          data: cyc.sei_loss_pct,
+          borderColor: C.amber,
+          backgroundColor: 'rgba(255,176,32,0.25)',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: 'origin',
+          tension: 0.3,
+        },
+        {
+          label: 'Li Plating Loss',
+          data: cyc.plating_loss_pct,
+          borderColor: C.red,
+          backgroundColor: 'rgba(255,77,106,0.15)',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: '-1',
+          tension: 0.3,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          labels: { boxWidth: 10, padding: 12, color: C.muted, font: { size: 10 } }
+        },
+        tooltip: {
+          backgroundColor: '#0b1629',
+          borderColor: 'rgba(32,120,255,0.3)',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`
+          }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Cycle', color: C.muted }, grid: gridStyle, ticks: tickStyle },
+        y: { title: { display: true, text: 'Capacity Loss (%)', color: C.muted }, grid: gridStyle, ticks: tickStyle }
+      }
+    }
+  });
+
+  // ── CHART 4: Nyquist Plot ────────────────────────────────────────
+  const nyquistData = data.nyquist;
+  const nyquistColors = [C.green, C.cyan, C.amber, C.red];
+  let nyquistChart = null;
+
+  function buildNyquist(idx) {
+    if (nyquistChart) nyquistChart.destroy();
+    const nd = nyquistData[idx];
+    nyquistChart = new Chart(document.getElementById('nyquistChart'), {
+      type: 'line',
+      data: {
+        datasets: [{
+          label: nd.label,
+          data: nd.z_real.map((x, i) => ({ x, y: nd.z_imag[i] })),
+          borderColor: nyquistColors[idx],
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          fill: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0b1629',
+            borderColor: 'rgba(32,120,255,0.3)',
+            borderWidth: 1,
+            callbacks: {
+              label: ctx => ` Z_real=${ctx.parsed.x.toFixed(4)}Ω  -Z_imag=${ctx.parsed.y.toFixed(4)}Ω`
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: "Z' real (Ω)", color: C.muted },
+            grid: gridStyle, ticks: tickStyle,
+          },
+          y: {
+            title: { display: true, text: "-Z'' imag (Ω)", color: C.muted },
+            grid: gridStyle, ticks: tickStyle,
+          }
+        }
+      }
+    });
+  }
+
+  // Build tabs
+  const tabsEl = document.getElementById('nyquist-tabs');
+  nyquistData.forEach((nd, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (i === 0 ? ' active' : '');
+    btn.textContent = nd.label;
+    btn.style.borderColor = nyquistColors[i] + '44';
+    btn.onclick = () => {
+      tabsEl.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      buildNyquist(i);
+    };
+    tabsEl.appendChild(btn);
+  });
+  buildNyquist(0);
+
+  // ── CHART 5: Stage Timeline ──────────────────────────────────────
+  const stageColors = cyc.degradation_stage.map(s => STAGE_COLORS[s] + '99');
+  const stageBorders = cyc.degradation_stage.map(s => STAGE_COLORS[s]);
+
+  new Chart(document.getElementById('stageChart'), {
+    type: 'bar',
+    data: {
+      labels: cyc.cycle_number,
+      datasets: [{
+        label: 'Degradation Stage',
+        data: cyc.degradation_stage,
+        backgroundColor: stageColors,
+        borderColor: stageBorders,
+        borderWidth: 0,
+        barPercentage: 1.05,
+        categoryPercentage: 1.0,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0b1629',
+          borderColor: 'rgba(32,120,255,0.3)',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => ` ${STAGE_NAMES[ctx.parsed.y]} (Cycle ${ctx.parsed.x})`
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Cycle', color: C.muted },
+          grid: { display: false },
+          ticks: tickStyle,
+        },
+        y: {
+          min: 0, max: 6,
+          title: { display: true, text: 'Stage (1–5)', color: C.muted },
+          grid: gridStyle,
+          ticks: {
+            ...tickStyle,
+            stepSize: 1,
+            callback: v => v >= 1 && v <= 5 ? `S${v}` : ''
+          }
+        }
+      }
+    }
+  });
+
+  // ── Stage legend ─────────────────────────────────────────────────
+  const legendEl = document.getElementById('stage-legend');
+  for (let s = 1; s <= 5; s++) {
+    legendEl.innerHTML += `
+      <div class="stage-pill">
+        <div class="stage-dot" style="background:${STAGE_COLORS[s]}"></div>
+        <span style="color:${STAGE_COLORS[s]}">${STAGE_NAMES[s]}</span>
+      </div>`;
+  }
+}
+
+// Run on page load
+init();
+</script>
+</body>
+</html>
