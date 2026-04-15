@@ -8,9 +8,6 @@ with open("qebis_data.json", "r") as f:
 with open("qebis_dashboard.html", "r", encoding="utf-8") as f:
     html = f.read()
 
-html = html.replace(
-    "__QEBIS_DATA__",
-    json.dumps(qebis_data)
-)
+html = html.replace("__QEBIS_DATA__", json.dumps(qebis_data))
 
-components.html(html, height=2200, scrolling=True)
+components.html(html, height=3000, scrolling=True)
